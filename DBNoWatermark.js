@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        豆包下载无水印
-// @namespace    http://tampermonkey.net/
-// @version      0.1
+// @namespace    https://github.com/xiaowang96-github/doubaoNowatermark
+// @version      1.0
 // @description  尝试从豆包下载不带水印的大图
 // @author      xiaowang
 // @match        *://www.doubao.com/*
@@ -95,11 +95,9 @@
         // 创建新的下载无水印图按钮
         const newButton = document.createElement('div');
         newButton.className = 'right-label-btn-wrapper-ryo3eC hover-BfK9He';
-        newButton.style.marginLeft = '10px'; // 添加一些间距
-        newButton.style.padding = '5px 10px'; // 增加内边距
-        newButton.style.cursor = 'pointer'; // 设置鼠标指针样式
-        newButton.id = 'download_no_watermark_button'; // 设置ID以便后续处理
+        newButton.id = 'download_no_watermark_button';
 
+        // 创建 SVG 图标
         const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svgIcon.setAttribute("xmlns", "http://www.w3.org/2000/svg");
         svgIcon.setAttribute("width", "1em");
@@ -107,20 +105,31 @@
         svgIcon.setAttribute("fill", "none");
         svgIcon.setAttribute("viewBox", "0 0 24 24");
 
+        // 创建 SVG 路径
         const pathIcon = document.createElementNS("http://www.w3.org/2000/svg", "path");
         pathIcon.setAttribute("fill", "currentColor");
         pathIcon.setAttribute("d", "M20.207 12.707a1 1 0 0 0-1.414-1.414L13 17.086V2.5a1 1 0 1 0-2 0v14.586l-5.793-5.793a1 1 0 0 0-1.414 1.414l7.5 7.5c.195.195.45.293.706.293H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2h-7.999a1 1 0 0 0 .706-.293z");
 
+        // 将路径添加到 SVG 中
         svgIcon.appendChild(pathIcon);
+        // 将 SVG 添加到按钮中
+
         newButton.appendChild(svgIcon);
 
+        // 创建按钮文本标签
         const spanLabel = document.createElement('span');
         spanLabel.className = 'btn-label-mw0QhY';
         spanLabel.textContent = '下载无水印图';
+        // 将文本标签添加到按钮中
         newButton.appendChild(spanLabel);
+        const targetDiv = document.querySelector('.right-dVuO4Z');
+        // 将新按钮添加到文档中
+        if (targetDiv) {
+            targetDiv.appendChild(newButton);
+        } else {
+            console.error('未找到具有 right-Mn0KqP right-top-FrGw1E 类名的元素');
+        }
 
-        // 将新按钮插入到下载原图按钮之后
-        downloadButton.parentNode.insertBefore(newButton, downloadButton.nextSibling);
 
         console.log('下载无水印图按钮已添加');
     }
