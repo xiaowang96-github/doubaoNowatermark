@@ -1,45 +1,68 @@
 // ==UserScript==
 // @name        豆包下载无水印
 // @namespace    https://github.com/xiaowang96-github/doubaoNowatermark
-// @version      1.0
+// @version      1.2
 // @description  尝试从豆包下载不带水印的大图
-// @author      xiaowang
+// @author       xiaowang
 // @match        *://www.doubao.com/*
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // 等待页面完全加载
-    window.addEventListener('load', function() {
+    window.addEventListener('load', function () {
         console.log('页面已加载');
 
-        // 使用MutationObserver监视DOM变化
-        const observer = new MutationObserver((mutationsList, observer) => {
-            for (let mutation of mutationsList) {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            const downloadButton = node.querySelector('[data-testid="edit_image_download_button"]');
-                            if (downloadButton) {
-                                console.log('下载原图按钮已出现');
-                                addDownloadNoWatermarkButton(downloadButton);
-                                observer.disconnect(); // 停止观察，因为我们已经找到了按钮
-                                observeImageChanges();
-                            }
+        // 监控 .canvas_wrapper-GK0Ng2 entered-HNbdrI 元素
+        const observerCanvasWrapper = new MutationObserver((mutations) => {
+            for (const mut of mutations) {
+                if (mut.type === 'childList') {
+                    const canvasWrappers = document.querySelectorAll('.canvas_wrapper-GK0Ng2.entered-HNbdrI');
+                    canvasWrappers.forEach(canvasWrapper => {
+                        if (!canvasWrapper.dataset.processed) {
+                            console.log('canvas_wrapper-GK0Ng2 entered-HNbdrI 元素已出现');
+                            // 标记该元素已被处理
+                            canvasWrapper.dataset.processed = true;
+                            // 在 .right-dVuO4Z 元素中添加下载按钮
+                            setTimeout(() => {
+                                addDownloadNoWatermarkButton(canvasWrapper);
+                                console.log('已经添加完按钮啦');
+                            }, 200); // 延迟 1000 毫秒，即 1 秒
                         }
                     });
                 }
             }
         });
 
-        // 开始观察body元素及其子节点的变化
-        observer.observe(document.body, { childList: true, subtree: true });
+        // 配置 MutationObserver 监听 body 元素的子节点变化
+        observerCanvasWrapper.observe(document.body, { childList: true, subtree: true });
 
-        // 监听所有的点击事件
-        document.addEventListener('click', function(event) {
-            // 检查是否点击了下载无水印图按钮
+        // 监控关闭按钮的点击事件
+        const observerCloseButton = new MutationObserver((mutations) => {
+            for (const mut of mutations) {
+                if (mut.type === 'childList') {
+                    const closeButton = document.querySelector('[data-testid="edit_image_close_button"]');
+                    if (closeButton) {
+                        closeButton.addEventListener('click', () => {
+                            console.log('关闭按钮被点击');
+                            // 重置所有 .canvas_wrapper-GK0Ng2.entered-HNbdrI 元素的状态
+                            const canvasWrappers = document.querySelectorAll('.canvas_wrapper-GK0Ng2.entered-HNbdrI');
+                            canvasWrappers.forEach(canvasWrapper => {
+                                delete canvasWrapper.dataset.processed;
+                            });
+                        });
+                    }
+                }
+            }
+        });
+
+        // 配置 MutationObserver 监听 body 元素的子节点变化
+        observerCloseButton.observe(document.body, { childList: true, subtree: true });
+
+        // 监听下载按钮的点击事件
+        document.addEventListener('click', function (event) {
             if (event.target && event.target.closest('#download_no_watermark_button')) {
                 console.log('下载无水印图按钮被点击');
 
@@ -50,40 +73,31 @@
                     return;
                 }
 
-                const imgElement = imageContainer.querySelector('div[data-testid="canvas_image_container"]');
-                const imgElementin = imgElement.querySelector('img[data-testid="in_painting_picture"]');
-                if (!imgElement) {
-                    console.error('无法找到图片元素');
-                    return;
-                }
-
+                const imgElementin = imageContainer.querySelector('img[data-testid="in_painting_picture"]');
                 // 获取原始图片URL
                 let imageUrl = imgElementin.src;
-                const urlWithoutWatermark = imageUrl;
+                console.log('原始图片URL:', imageUrl);
 
-                // 创建一个隐藏的链接用于下载
-                //    const link = document.createElement('a');
-                //     link.style.display='none';
-                //      link.href = imageUrl;
-                //     document.body.appendChild(link);
-                // link.download = 'image.jpg';
-
-                // 触发点击事件
-                //       link.click();
                 async function downloadFile(url, filename) {
-                    const response = await fetch(url);
-                    const blob = await response.blob();
-                    const objectUrl = URL.createObjectURL(blob);
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const blob = await response.blob();
+                        const objectUrl = URL.createObjectURL(blob);
 
-                    const a = document.createElement('a');
-                    a.href = objectUrl;
-                    a.download = filename;
-                    a.click();
-                    URL.revokeObjectURL(objectUrl);
+                        const a = document.createElement('a');
+                        a.href = objectUrl;
+                        a.download = filename;
+                        a.click();
+                        URL.revokeObjectURL(objectUrl);
+                    } catch (error) {
+                        console.error('下载失败:', error);
+                    }
                 }
-                downloadFile(imageUrl,"imageorgin.png");
 
-                console.log('正在下载大图:', urlWithoutWatermark);
+                downloadFile(imageUrl, "imageorgin.png");
+
+                console.log('正在下载大图:', imageUrl);
 
                 // 阻止默认行为
                 event.preventDefault();
@@ -91,7 +105,14 @@
         });
     });
 
-    function addDownloadNoWatermarkButton(downloadButton) {
+    function addDownloadNoWatermarkButton(container) {
+        // 找到 .right-dVuO4Z 元素
+        const targetDiv = container.querySelector('.right-dVuO4Z');
+        if (!targetDiv) {
+            console.error('未找到具有 right-dVuO4Z 类名的元素');
+            return;
+        }
+
         // 创建新的下载无水印图按钮
         const newButton = document.createElement('div');
         newButton.className = 'right-label-btn-wrapper-ryo3eC hover-BfK9He';
@@ -112,8 +133,8 @@
 
         // 将路径添加到 SVG 中
         svgIcon.appendChild(pathIcon);
-        // 将 SVG 添加到按钮中
 
+        // 将 SVG 添加到按钮中
         newButton.appendChild(svgIcon);
 
         // 创建按钮文本标签
@@ -122,52 +143,13 @@
         spanLabel.textContent = '下载无水印图';
         // 将文本标签添加到按钮中
         newButton.appendChild(spanLabel);
-        const targetDiv = document.querySelector('.right-dVuO4Z');
-        // 将新按钮添加到文档中
-        if (targetDiv) {
-            targetDiv.appendChild(newButton);
-        } else {
-            console.error('未找到具有 right-Mn0KqP right-top-FrGw1E 类名的元素');
-        }
 
+        // 将新按钮添加到文档中
+        targetDiv.appendChild(newButton);
 
         console.log('下载无水印图按钮已添加');
     }
-
-    function observeImageChanges() {
-        const imageContainer = document.querySelector('[data-testid="canvas_image_container"]');
-        if (!imageContainer) {
-            console.error('无法找到图片容器');
-            return;
-        }
-
-        const imgElement = imageContainer.querySelector('img[data-testid="in_painting_picture"]');
-        if (!imgElement) {
-            console.error('无法找到图片元素');
-            return;
-        }
-
-        const imageObserver = new MutationObserver((mutationsList, observer) => {
-            for (let mutation of mutationsList) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
-                    console.log('图片URL已更改');
-                    updateDownloadLink(imgElement);
-                }
-            }
-        });
-
-        // 开始观察图片元素的src属性变化
-        imageObserver.observe(imgElement, { attributes: true });
-    }
-
-    function updateDownloadLink(imgElement) {
-        const imageUrl = imgElement.src;
-        const urlWithoutWatermark = imageUrl.split('?')[0];
-        const downloadLink = document.getElementById('download_link');
-        if (downloadLink) {
-            downloadLink.href = urlWithoutWatermark;
-        } else {
-            console.error('下载链接未找到');
-        }
-    }
 })();
+
+
+
