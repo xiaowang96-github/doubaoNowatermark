@@ -1,6 +1,11 @@
 # doubaoNowatermark   xiaowang
 ***
 ## 更新记录
+
+### 1.32
+1、豆包更新，class名称变更， 直接用testid进行定位
+
+
 ### 1.2
 1、解决bug，切换图片时，偶现无法生成按钮的情况
 
